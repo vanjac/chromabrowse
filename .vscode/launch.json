@@ -9,7 +9,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}\\build\\chromabrowse.exe",
-            "args": [],
+            "args": ["/tray"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}\\build",
             "environment": [],

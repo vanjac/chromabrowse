@@ -86,7 +86,7 @@ void FolderWindow::onCreate() {
         close();
         return;
     }
-    browser->SetPropertyBag(PROPERTY_BAG);
+    // browser->SetPropertyBag(PROPERTY_BAG);
     if (FAILED(browser->BrowseToObject(item, SBSP_ABSOLUTE))) {
         // eg. browsing a subdirectory in the recycle bin
         debugPrintf(L"Unable to browse to folder %s\n", &*title);
@@ -113,24 +113,24 @@ void FolderWindow::onCreate() {
         }
     }
 
-    bool visited = false; // folder has been visited by chromabrowse before
-    if (!fallback && propBag) {
-        VARIANT var = {};
-        if (SUCCEEDED(propBag->Read(PROP_VISITED, &var, nullptr))) {
-            visited = true;
-        } else {
-            if (SUCCEEDED(InitVariantFromBoolean(TRUE, &var))) {
-                propBag->Write(PROP_VISITED, &var);
-            }
-        }
-    }
+    // bool visited = false; // folder has been visited by chromabrowse before
+    // if (!fallback && propBag) {
+    //     VARIANT var = {};
+    //     if (SUCCEEDED(propBag->Read(PROP_VISITED, &var, nullptr))) {
+    //         visited = true;
+    //     } else {
+    //         if (SUCCEEDED(InitVariantFromBoolean(TRUE, &var))) {
+    //             propBag->Write(PROP_VISITED, &var);
+    //         }
+    //     }
+    // }
 
-    if (!visited && SUCCEEDED(browser->GetCurrentView(IID_PPV_ARGS(&view)))) {
-        // FVM_SMALLICON only seems to work if it's also specified with an icon size
-        // TODO should this be the shell small icon size?
-        // https://docs.microsoft.com/en-us/windows/win32/menurc/about-icons
-        view->SetViewModeAndIconSize(FVM_SMALLICON, GetSystemMetrics(SM_CXSMICON)); // = 16
-    }
+    // if (!visited && SUCCEEDED(browser->GetCurrentView(IID_PPV_ARGS(&view)))) {
+    //     // FVM_SMALLICON only seems to work if it's also specified with an icon size
+    //     // TODO should this be the shell small icon size?
+    //     // https://docs.microsoft.com/en-us/windows/win32/menurc/about-icons
+    //     view->SetViewModeAndIconSize(FVM_SMALLICON, GetSystemMetrics(SM_CXSMICON)); // = 16
+    // }
 
     if (SUCCEEDED(browser->GetCurrentView(IID_PPV_ARGS(&shellView)))) {
         if (child) {

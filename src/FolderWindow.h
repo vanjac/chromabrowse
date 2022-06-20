@@ -39,14 +39,15 @@ protected:
 
     void refresh() override;
 
+    CComPtr<IExplorerBrowser> browser;
+
 private:
     const wchar_t * className() override;
 
-    bool initBrowser();
+    virtual bool initBrowser();
     void selectionChanged();
     void resultsFolderFallback();
 
-    CComPtr<IExplorerBrowser> browser;
     CComPtr<IShellView> shellView;
     CComPtr<IPropertyBag> propBag;
 

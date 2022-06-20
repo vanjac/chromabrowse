@@ -1,6 +1,7 @@
 #include "FolderWindow.h"
 #include "ThumbnailWindow.h"
 #include "PreviewWindow.h"
+#include "TrayWindow.h"
 #include "ItemWindowFactory.h"
 #include "resource.h"
 #include <shellapi.h>
@@ -42,6 +43,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int showCommand) {
     chromabrowse::FolderWindow::init();
     chromabrowse::ThumbnailWindow::init();
     chromabrowse::PreviewWindow::init();
+    chromabrowse::TrayWindow::init();
 
     // https://docs.microsoft.com/en-us/windows/win32/shell/appids
     SetCurrentProcessExplicitAppUserModelID(APP_ID);
@@ -50,26 +52,36 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int showCommand) {
     CreateThread(nullptr, 0, updateJumpListThread, nullptr, 0, &threadId);
 
     {
+        CComPtr<chromabrowse::ItemWindow> initialWindow;
         CComPtr<IShellItem> startItem;
-        if (argc > 1) {
-            int pathLen = lstrlen(argv[1]);
-            if (argv[1][pathLen - 1] == '"')
-                argv[1][pathLen - 1] = '\\'; // fix weird CommandLineToArgvW behavior with \"
-            // parse name vs display name https://stackoverflow.com/q/42966489
-            if (FAILED(SHCreateItemFromParsingName(argv[1], nullptr, IID_PPV_ARGS(&startItem)))) {
-                debugPrintf(L"Unable to locate item at path %s\n", argv[1]);
+        if (argc > 1 && lstrcmpi(argv[1], L"/tray") == 0) {
+            if (FAILED(SHGetKnownFolderItem(FOLDERID_Links, KF_FLAG_DEFAULT, nullptr,
+                        IID_PPV_ARGS(&startItem)))) {
+                debugPrintf(L"Couldn't get links folder!\n");
                 return 0;
             }
+            initialWindow.Attach(new chromabrowse::TrayWindow(nullptr, startItem));
         } else {
-            if (FAILED(SHGetKnownFolderItem(FOLDERID_Desktop, KF_FLAG_DEFAULT, nullptr,
-                    IID_PPV_ARGS(&startItem)))) {
-                debugPrintf(L"Couldn't get desktop!\n");
-                return 0;
+            if (argc > 1) {
+                int pathLen = lstrlen(argv[1]);
+                if (argv[1][pathLen - 1] == '"')
+                    argv[1][pathLen - 1] = '\\'; // fix weird CommandLineToArgvW behavior with \"
+                // parse name vs display name https://stackoverflow.com/q/42966489
+                if (FAILED(SHCreateItemFromParsingName(argv[1], nullptr,
+                        IID_PPV_ARGS(&startItem)))) {
+                    debugPrintf(L"Unable to locate item at path %s\n", argv[1]);
+                    return 0;
+                }
+            } else {
+                if (FAILED(SHGetKnownFolderItem(FOLDERID_Desktop, KF_FLAG_DEFAULT, nullptr,
+                        IID_PPV_ARGS(&startItem)))) {
+                    debugPrintf(L"Couldn't get desktop!\n");
+                    return 0;
+                }
             }
+            initialWindow = chromabrowse::createItemWindow(nullptr, startItem);
         }
 
-        CComPtr<chromabrowse::ItemWindow> initialWindow
-            = chromabrowse::createItemWindow(nullptr, startItem);
         SIZE size = initialWindow->requestedSize();
         RECT windowRect;
         if (argc > 1) {
@@ -87,6 +99,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int showCommand) {
 
     MSG msg;
     while (GetMessage(&msg, nullptr, 0, 0)) {
+        if (msg.message == 0x04CC)
+            debugPrintf(L"User message %x %llx %llx\n", msg.message, msg.wParam, msg.lParam);
         if (chromabrowse::activeWindow && chromabrowse::activeWindow->handleTopLevelMessage(&msg))
             continue;
         TranslateMessage(&msg);

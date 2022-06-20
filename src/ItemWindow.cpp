@@ -29,14 +29,9 @@ CComPtr<ItemWindow> activeWindow;
 LRESULT CALLBACK captionButtonProc(HWND hwnd, UINT message,
     WPARAM wParam, LPARAM lParam, UINT_PTR subclassID, DWORD_PTR refData);
 
-int ItemWindow::CAPTION_HEIGHT = 0;
 HACCEL ItemWindow::accelTable;
 
 void ItemWindow::init() {
-    RECT adjustedRect = {};
-    AdjustWindowRectEx(&adjustedRect, WS_OVERLAPPEDWINDOW, FALSE, 0);
-    CAPTION_HEIGHT = -adjustedRect.top; // = 31
-
     // TODO only supported on windows 10!
     symbolFont = CreateFont(12, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET,
         OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, 
@@ -104,6 +99,12 @@ SIZE ItemWindow::requestedSize() {
     return DEFAULT_SIZE;
 }
 
+int ItemWindow::captionHeight() {
+    RECT adjustedRect = {};
+    AdjustWindowRectEx(&adjustedRect, WS_OVERLAPPEDWINDOW, FALSE, 0);
+    return -adjustedRect.top; // = 31
+}
+
 bool ItemWindow::create(RECT rect, int showCommand) {
     if (FAILED(item->GetDisplayName(SIGDN_NORMALDISPLAY, &title))) {
         debugPrintf(L"Unable to get item name\n");
@@ -128,7 +129,7 @@ bool ItemWindow::create(RECT rect, int showCommand) {
 
     // keep window on screen
     if (rect.left != CW_USEDEFAULT && rect.top != CW_USEDEFAULT) {
-        POINT testPoint = {rect.left, rect.top + CAPTION_HEIGHT};
+        POINT testPoint = {rect.left, rect.top + captionHeight()};
         HMONITOR nearestMonitor = MonitorFromPoint(testPoint, MONITOR_DEFAULTTONEAREST);
         MONITORINFO monitorInfo;
         monitorInfo.cbSize = sizeof(monitorInfo);
@@ -138,6 +139,10 @@ bool ItemWindow::create(RECT rect, int showCommand) {
         if (testPoint.y > monitorInfo.rcWork.bottom)
             OffsetRect(&rect, 0, monitorInfo.rcWork.bottom - testPoint.y);
     }
+
+    HWND taskBar = FindWindow(L"Shell_TrayWnd", NULL);
+    if (taskBar)
+        debugPrintf(L"found the taskbar!\n");
 
     HWND createHwnd = CreateWindow(
         className(),
@@ -149,7 +154,7 @@ bool ItemWindow::create(RECT rect, int showCommand) {
         // position/size
         rect.left, rect.top, rectWidth(rect), rectHeight(rect),
 
-        nullptr,                // parent window
+        taskBar,                // parent/owner window
         nullptr,                // menu
         GetModuleHandle(NULL),  // instance handle
         this);                  // application data
@@ -187,7 +192,7 @@ void ItemWindow::move(int x, int y) {
 RECT ItemWindow::windowBody() {
     RECT clientRect;
     GetClientRect(hwnd, &clientRect);
-    return {0, CAPTION_HEIGHT, clientRect.right, clientRect.bottom};
+    return {0, captionHeight(), clientRect.right, clientRect.bottom};
 }
 
 LRESULT ItemWindow::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
@@ -344,7 +349,7 @@ void ItemWindow::onCreate() {
     bool showParentButton = !parent && SUCCEEDED(item->GetParent(&parentItem));
     parentButton = CreateWindow(L"BUTTON", L"\uE96F", // ChevronLeftSmall
         (showParentButton ? WS_VISIBLE : 0) | WS_CHILD | BS_PUSHBUTTON,
-        0, 0, GetSystemMetrics(SM_CXSIZE), CAPTION_HEIGHT,
+        0, 0, GetSystemMetrics(SM_CXSIZE), captionHeight(),
         hwnd, nullptr, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), nullptr);
     SetWindowSubclass(parentButton, captionButtonProc, 0, 0);
 }
@@ -369,7 +374,7 @@ void ItemWindow::onActivate(WORD state, HWND prevWindow) {
 
     RECT captionRect;
     GetClientRect(hwnd, &captionRect);
-    captionRect.bottom = CAPTION_HEIGHT;
+    captionRect.bottom = captionHeight();
     InvalidateRect(hwnd, &captionRect, FALSE); // make sure to update caption text color
 
     if (state != WA_INACTIVE) {
@@ -417,7 +422,7 @@ void ItemWindow::extendWindowFrame() {
     MARGINS margins;
     margins.cxLeftWidth = 0;
     margins.cxRightWidth = 0;
-    margins.cyTopHeight = CAPTION_HEIGHT;
+    margins.cyTopHeight = captionHeight();
     margins.cyBottomHeight = 0;
     if (FAILED(DwmExtendFrameIntoClientArea(hwnd, &margins))) {
         debugPrintf(L"Unable to create custom frame!\n");
@@ -463,7 +468,7 @@ void ItemWindow::onPaint(PAINTSTRUCT paint) {
     HDC hdcPaint = CreateCompatibleDC(paint.hdc);
     if (hdcPaint) {
         int width = rectWidth(clientRect);
-        int height = CAPTION_HEIGHT;
+        int height = captionHeight();
 
         // Define the BITMAPINFO structure used to draw text.
         // Note that biHeight is negative. This is done because
@@ -516,7 +521,7 @@ void ItemWindow::onPaint(PAINTSTRUCT paint) {
             paintRect.top += CAPTION_PADDING;
             paintRect.right -= buttonWidth; // close button width
             paintRect.left += headerLeft + iconSize + WINDOW_ICON_PADDING;
-            paintRect.bottom = CAPTION_HEIGHT;
+            paintRect.bottom = captionHeight();
             DrawThemeTextEx(theme, hdcPaint, 0, 0, title, -1,
                             DT_LEFT | DT_WORD_ELLIPSIS, &paintRect, &textOpts);
 

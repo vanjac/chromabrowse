@@ -14,8 +14,6 @@ extern CComPtr<ItemWindow> activeWindow;
 
 class ItemWindow : public IUnknown {
 protected:
-    // calculated in init()
-    static int CAPTION_HEIGHT;
     static HACCEL accelTable;
 
 public:
@@ -49,6 +47,8 @@ protected:
     virtual LRESULT handleMessage(UINT message, WPARAM wParam, LPARAM lParam);
 
     RECT windowBody();
+
+    virtual int captionHeight();
 
     virtual void onCreate();
     virtual void onDestroy();
