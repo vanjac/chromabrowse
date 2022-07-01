@@ -59,8 +59,8 @@ protected:
     void openChild(CComPtr<IShellItem> childItem);
     void closeChild();
     virtual void onChildDetached();
-
     virtual void refresh();
+    virtual bool statusBarText(HWND statusBar);
 
     HWND hwnd;
     CComHeapPtr<wchar_t> title;
@@ -91,6 +91,9 @@ private:
     void completeRename();
     void cancelRename();
 
+    // threads
+    static DWORD WINAPI setStatusBarThread(void *);
+
     // window subclasses
     static LRESULT CALLBACK captionButtonProc(HWND hwnd, UINT message,
         WPARAM wParam, LPARAM lParam, UINT_PTR subclassID, DWORD_PTR refData);
@@ -99,7 +102,7 @@ private:
 
     HICON iconLarge = nullptr, iconSmall = nullptr;
 
-    HWND tooltip, parentButton, renameBox;
+    HWND tooltip, parentButton, renameBox, statusBar;
     RECT proxyRect, titleRect;
     // for handling delayed context menu messages while open (eg. for Open With menu)
     CComQIPtr<IContextMenu2> contextMenu2;

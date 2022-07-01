@@ -220,9 +220,10 @@ void ItemWindow::move(int x, int y) {
 }
 
 RECT ItemWindow::windowBody() {
-    RECT clientRect;
+    RECT clientRect, statusRect;
     GetClientRect(hwnd, &clientRect);
-    return {0, CAPTION_HEIGHT, clientRect.right, clientRect.bottom};
+    GetClientRect(statusBar, &statusRect);
+    return {0, CAPTION_HEIGHT + statusRect.bottom, clientRect.right, clientRect.bottom};
 }
 
 LRESULT ItemWindow::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
@@ -461,6 +462,14 @@ void ItemWindow::onCreate() {
     SetWindowSubclass(renameBox, renameBoxProc, 0, (DWORD_PTR)this);
     if (captionFont)
         SendMessage(renameBox, WM_SETFONT, (WPARAM)captionFont, FALSE);
+
+    statusBar = CreateWindow(STATUSCLASSNAME, nullptr,
+        CCS_TOP | CCS_NOPARENTALIGN | SBARS_TOOLTIPS | WS_CHILD | WS_VISIBLE,
+        0, CAPTION_HEIGHT, 0, 0,
+        hwnd, nullptr, instance, nullptr);
+    int initParts[] = {0, 0, -1};
+    SendMessage(statusBar, SB_SETPARTS, 3, (LPARAM)initParts);
+    CreateThread(nullptr, 0, setStatusBarThread, this, 0, nullptr);
 }
 
 void ItemWindow::onDestroy() {
@@ -497,13 +506,16 @@ void ItemWindow::onActivate(WORD state, HWND) {
     }
 }
 
-void ItemWindow::onSize(int, int) {
+void ItemWindow::onSize(int width, int) {
     windowRectChanged();
     if (parent && preserveSize()) {
         RECT rect;
         GetWindowRect(hwnd, &rect);
         parent->storedChildSize = rectSize(rect);
     }
+    SetWindowPos(statusBar, nullptr, 0, 0, width, 0, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    int parts[] = {width / 3, width * 2 / 3, -1};
+    SendMessage(statusBar, SB_SETPARTS, 3, (LPARAM)parts);
 }
 
 void ItemWindow::windowRectChanged() {
@@ -731,6 +743,41 @@ POINT ItemWindow::parentPos() {
 }
 
 void ItemWindow::refresh() {}
+
+bool ItemWindow::statusBarText(HWND bar) {
+    CComPtr<IQueryInfo> queryInfo;
+    HRESULT result = item->BindToHandler(nullptr, BHID_SFUIObject, IID_PPV_ARGS(&queryInfo));
+    if (FAILED(result)) {
+        debugPrintf(L"bind to handler failed %d\n", result);
+        return false;
+    }
+    CComHeapPtr<wchar_t> text;
+    if (FAILED(queryInfo->GetInfoTip(QITIPF_USESLOWTIP, &text)))
+        return false;
+    int part = 0;
+    wchar_t *partStart = text;
+    for (wchar_t *c = text; *c; c++) {
+        if (*c == '\n') {
+            *c = 0;
+            SendMessage(bar, SB_SETTEXT, part++, (LPARAM)partStart);
+            partStart = c + 1;
+        }
+    }
+    SendMessage(bar, SB_SETTEXT, part, (LPARAM)partStart);
+    return true;
+}
+
+DWORD WINAPI ItemWindow::setStatusBarThread(void *param) {
+    if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
+        return 0;
+    ItemWindow *itemWindow = (ItemWindow *)param;
+    if (itemWindow->statusBarText(itemWindow->statusBar))
+        debugPrintf(L"successfully set status bar text\n");
+    else
+        debugPrintf(L"failed to set status bar text\n");
+    CoUninitialize();
+    return 0;
+}
 
 void ItemWindow::invokeProxyDefaultVerb(POINT point) {
     // https://devblogs.microsoft.com/oldnewthing/20040930-00/?p=37693
