@@ -13,4 +13,7 @@
 #define ID_NEW_FOLDER   1007
 #define ID_RENAME_PROXY 1008
 
+#define IDR_TEXT_ACCEL  104
+#define ID_SAVE         1100
+
 #define IDR_ICON_FONT   103

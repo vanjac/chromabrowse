@@ -15,6 +15,8 @@ public:
     bool handleTopLevelMessage(MSG *msg) override;
 
 protected:
+    LRESULT handleMessage(UINT message, WPARAM wParam, LPARAM lParam) override;
+
     void onCreate() override;
     void onActivate(WORD state, HWND prevWindow);
     void onSize(int width, int height);
@@ -22,15 +24,18 @@ protected:
 private:
     const wchar_t * className() override;
 
+    bool loadText();
+    bool saveText();
+
     static LRESULT CALLBACK richEditProc(HWND hwnd, UINT message,
         WPARAM wParam, LPARAM lParam, UINT_PTR subclassID, DWORD_PTR refData);
 
     enum Encoding {
-        UTF8, UTF8BOM, UTF16LE, UTF16BE
+        FAIL, UTF8, UTF8BOM, UTF16LE, UTF16BE
     };
 
     HWND edit;
-    Encoding encoding;
+    Encoding encoding = FAIL;
     int scrollAccum = 0; // for high resolution scrolling
 };
 

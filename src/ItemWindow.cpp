@@ -30,6 +30,7 @@ const COLORREF WIN10_INACTIVE_CAPTION_COLOR = 0x636363;
 static HANDLE symbolFontHandle = 0;
 static HFONT captionFont = 0, symbolFont = 0;
 
+// ItemWindow.h
 long numOpenWindows;
 CComPtr<ItemWindow> activeWindow;
 
@@ -397,7 +398,7 @@ LRESULT ItemWindow::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
             }
             break;
         }
-        case WM_COMMAND: {
+        case WM_COMMAND:
             if (parentButton && (HWND)lParam == parentButton && HIWORD(wParam) == BN_CLICKED) {
                 openParent();
                 return 0;
@@ -440,7 +441,6 @@ LRESULT ItemWindow::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
                     return 0;
             }
             break;
-        }
     }
 
     return DefWindowProc(hwnd, message, wParam, lParam);
